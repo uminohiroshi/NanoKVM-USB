@@ -1,3 +1,5 @@
+// Modified on 2026-11-15 by uminohiroshi.
+// Fix Windows Japanese IME key handling.
 import { ReactElement, useEffect, useRef } from 'react'
 import { useAtomValue } from 'jotai'
 
@@ -38,6 +40,14 @@ export const Keyboard = (): ReactElement => {
 
     // Key down event
     async function handleKeyDown(event: KeyboardEvent): Promise<void> {
+      console.log('[KEY DOWN]', {
+        key: event.key,
+        code: event.code,
+        keyCode: event.keyCode,
+        isComposing: event.isComposing,
+        composing: isComposing.current
+      })
+
       if (!isKeyboardEnabled) return
 
       // Skip during IME composition
@@ -75,6 +85,14 @@ export const Keyboard = (): ReactElement => {
 
     // Key up event
     async function handleKeyUp(event: KeyboardEvent): Promise<void> {
+      console.log('[KEY UP]', {
+        key: event.key,
+        code: event.code,
+        keyCode: event.keyCode,
+        isComposing: event.isComposing,
+        composing: isComposing.current
+      })
+
       if (!isKeyboardEnabled) return
 
       if (isComposing.current || event.isComposing) return
@@ -110,6 +128,17 @@ export const Keyboard = (): ReactElement => {
           await handleKeyEvent({ type: 'keyup', code: key })
           pressedKeys.current.delete(key)
         }
+      }
+
+      // Windows IME can consume keydown for Japanese conversion keys while
+      // still delivering keyup. Reconstruct the missing press before release.
+      if (
+        altGrState.current !== null &&
+        (code === 'Backquote' || code === 'Convert') &&
+        !pressedKeys.current.has(code)
+      ) {
+        console.log('[IME FIX] synthesize keydown:', code)
+        await handleKeyEvent({ type: 'keydown', code })
       }
 
       pressedKeys.current.delete(code)
